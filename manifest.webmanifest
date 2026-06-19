@@ -1,0 +1,12 @@
+{
+  "name": "Ivy Six - 明日の6つを決めるTodo",
+  "short_name": "Ivy Six",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#111827",
+  "description": "夜に明日やる6つを決め、翌日は上から順に実行するIvy Lee式Todoアプリ。",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

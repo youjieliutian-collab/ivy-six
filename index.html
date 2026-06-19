@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#111827" />
+  <title>Ivy Six | 明日の6つを決めるTodo</title>
+  <link rel="manifest" href="manifest.webmanifest?v=wabi-4" />
+  <link rel="stylesheet" href="styles.css?v=wabi-4" />
+</head>
+<body>
+  <div class="bg-orb orb-a"></div>
+  <div class="bg-orb orb-b"></div>
+  <div id="artBackdrop" class="art-backdrop" aria-hidden="true"></div>
+  <div id="inkBackdrop" class="ink-backdrop" aria-hidden="true"></div>
+  <div class="paper-grain" aria-hidden="true"></div>
+
+  <div class="app-shell">
+    <header class="app-header">
+      <div>
+        <p class="eyebrow">Ivy Lee Method</p>
+        <h1>明日の6つを決める</h1>
+      </div>
+      <div class="header-actions">
+        <button id="themeToggleButton" class="ghost-button" type="button">夜</button>
+        <button id="installButton" class="ghost-button hidden" type="button">ホーム追加</button>
+      </div>
+    </header>
+
+    <article class="goal-banner">
+      <p class="eyebrow">Final Goal</p>
+      <strong id="ultimateGoalBanner">最終的に達成したい目標を設定してください</strong>
+    </article>
+
+    <nav class="tabbar" aria-label="画面切り替え">
+      <button class="tab active" type="button" data-page="plan">夜の計画</button>
+      <button class="tab" type="button" data-page="today">今日やる</button>
+      <button class="tab" type="button" data-page="data">データ</button>
+    </nav>
+
+    <main>
+      <section id="page-plan" class="page active">
+        <article class="panel hero-panel">
+          <div>
+            <p class="eyebrow">Rule</p>
+            <h2>明日やることを6つだけ書き出す</h2>
+            <p class="muted">候補リスト・所要時間・重要度・緊急度は使いません。目標を見ながら、明日やる6つだけを決めます。</p>
+          </div>
+          <div class="summary-card">
+            <span>やる事リスト</span>
+            <strong id="plannedCount">0/6</strong>
+            <em id="plannedDate">明日の計画</em>
+          </div>
+        </article>
+
+        <article class="panel">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Goals</p>
+              <h2>目標</h2>
+            </div>
+          </div>
+          <form id="goalForm" class="goal-form">
+            <label class="field">
+              <span>最終的に達成したい目標</span>
+              <textarea id="ultimateGoal" rows="2" placeholder="例：AI自動化の受託で月収30万円を達成する"></textarea>
+            </label>
+            <label class="field">
+              <span>1ヶ月後の目標</span>
+              <textarea id="monthGoal" rows="2" placeholder="例：受託につながる導線と実績を1つ作る"></textarea>
+            </label>
+            <label class="field">
+              <span>今週の目標</span>
+              <textarea id="weekGoal" rows="2" placeholder="例：営業文を作り、5件提案する"></textarea>
+            </label>
+            <button class="primary-button" type="submit">目標を保存</button>
+          </form>
+        </article>
+
+        <article class="panel">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Planning Date</p>
+              <h2>いつの6つを決める？</h2>
+            </div>
+            <input id="planDate" class="date-input" type="date" />
+          </div>
+        </article>
+
+        <article class="panel">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Add Task</p>
+              <h2>やる事を追加</h2>
+            </div>
+          </div>
+          <form id="taskForm" class="task-form">
+            <label class="field grow">
+              <span>タスク名</span>
+              <input id="taskTitle" type="text" placeholder="例：記事の構成を作る" autocomplete="off" required />
+            </label>
+            <button class="primary-button" type="submit">リストに追加</button>
+          </form>
+
+          <div class="toolbar">
+            <button id="carryOverButton" class="secondary-button" type="button">過去の未完了を回す</button>
+          </div>
+        </article>
+
+        <article class="panel">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Tomorrow Six</p>
+              <h2>やる事リスト</h2>
+              <p class="muted">終わったタスクはチェックできます。翌日は上から順番に進めます。</p>
+            </div>
+            <button id="copyPlanButton" class="secondary-button" type="button">Markdownコピー</button>
+          </div>
+          <div id="planSlots" class="slots"></div>
+        </article>
+      </section>
+
+      <section id="page-today" class="page">
+        <article class="panel hero-panel">
+          <div>
+            <p class="eyebrow">Execution</p>
+            <h2>上から1つずつ終わらせる</h2>
+            <p class="muted">アイビー・リー式に、次のタスクだけに集中します。完了したらチェックを入れて次へ進みます。</p>
+          </div>
+          <div class="summary-card">
+            <span>進捗</span>
+            <strong id="todayProgress">0/6</strong>
+            <em>チェックで完了</em>
+          </div>
+        </article>
+
+        <article class="panel">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Work Date</p>
+              <h2>実行する日</h2>
+            </div>
+            <input id="workDate" class="date-input" type="date" />
+          </div>
+          <div class="meter"><div id="progressBar" class="meter-fill"></div></div>
+        </article>
+
+        <article class="panel">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Focus Queue</p>
+              <h2>今日の順番</h2>
+            </div>
+          </div>
+          <div id="todayList" class="task-list"></div>
+          <p id="emptyToday" class="empty-text">この日の6つはまだ決まっていません。「夜の計画」でやる事リストを作ってください。</p>
+        </article>
+      </section>
+
+      <section id="page-data" class="page">
+        <article class="panel">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Storage</p>
+              <h2>データ管理</h2>
+            </div>
+          </div>
+          <div class="data-actions">
+            <button id="exportButton" class="secondary-button" type="button">JSONエクスポート</button>
+            <label class="secondary-button file-label">JSONインポート<input id="importInput" type="file" accept="application/json" hidden /></label>
+            <button id="resetButton" class="danger-button" type="button">全データ削除</button>
+          </div>
+          <p class="muted">データはこのブラウザのlocalStorageに保存されます。PCとスマホ間の同期は、次の段階でSupabase/Firebase等を追加すると実現できます。</p>
+        </article>
+
+        <article class="panel">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Recent</p>
+              <h2>最近の計画</h2>
+            </div>
+          </div>
+          <div id="historyList" class="history-list"></div>
+        </article>
+      </section>
+    </main>
+  </div>
+
+  <template id="slotTemplate">
+    <article class="slot-card">
+      <div class="slot-number"></div>
+      <label class="check-wrap" aria-label="完了チェック">
+        <input class="slot-check" type="checkbox" />
+      </label>
+      <div class="slot-body">
+        <strong class="slot-title"></strong>
+        <span class="slot-meta"></span>
+      </div>
+      <div class="slot-actions">
+        <button class="tiny-button move-up" type="button">↑</button>
+        <button class="tiny-button move-down" type="button">↓</button>
+        <button class="tiny-button remove-slot" type="button">削除</button>
+      </div>
+    </article>
+  </template>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="app.js?v=wabi-4"></script>
+</body>
+</html>
