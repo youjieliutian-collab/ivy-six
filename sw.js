@@ -1,4 +1,4 @@
-const CACHE_NAME = "ivy-six-cache-v8";
+const CACHE_NAME = "ivy-six-cache-v9";
 const ASSETS = ["./", "./index.html", "./styles.css", "./app.js", "./manifest.webmanifest", "./icon.svg"];
 
 self.addEventListener("install", event => {

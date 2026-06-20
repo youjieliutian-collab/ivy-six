@@ -31,6 +31,7 @@ const els = {
   importInput: $("#importInput"),
   resetButton: $("#resetButton"),
   historyList: $("#historyList"),
+  archiveList: $("#archiveList"),
   toast: $("#toast"),
 };
 
@@ -120,11 +121,11 @@ const INK_PATTERNS = [
 function defaultState() {
   const tomorrow = offsetDateKey(1);
   return {
-    version: 3,
+    version: 4,
     selectedPlanDate: tomorrow,
     selectedWorkDate: todayKey(),
     goals: { ultimate: "", month: "", week: "" },
-    settings: { theme: "dark" },
+    settings: { theme: "dark", lastArchiveCheck: null },
     tasks: [],
   };
 }
@@ -148,6 +149,7 @@ function normalizeState(value) {
       planDate: task.planDate || base.selectedPlanDate,
       rank: Number.isFinite(Number(task.rank)) ? Number(task.rank) : null,
       completedAt: task.completedAt || null,
+      archivedAt: task.archivedAt || null,
       createdAt: task.createdAt || new Date(Date.now() + index).toISOString(),
       carriedFrom: task.carriedFrom || null,
     })).filter(task => task.title)
@@ -171,7 +173,7 @@ function normalizeState(value) {
   return {
     ...base,
     ...value,
-    version: 3,
+    version: 4,
     goals: { ...base.goals, ...(value.goals || {}) },
     settings: { ...base.settings, ...(value.settings || {}) },
     tasks,
@@ -202,8 +204,31 @@ function dateLabel(key) {
 
 function plannedTasks(date) {
   return state.tasks
-    .filter(task => task.planDate === date)
+    .filter(task => task.planDate === date && !task.archivedAt)
     .sort((a, b) => a.rank - b.rank || a.createdAt.localeCompare(b.createdAt));
+}
+
+function archivedTasks() {
+  return state.tasks
+    .filter(task => task.archivedAt)
+    .sort((a, b) => b.planDate.localeCompare(a.planDate) || a.rank - b.rank || a.createdAt.localeCompare(b.createdAt));
+}
+
+function autoArchivePastTasks() {
+  const today = todayKey();
+  const tomorrow = offsetDateKey(1);
+  if (state.selectedWorkDate < today) state.selectedWorkDate = today;
+  if (state.selectedPlanDate < today) state.selectedPlanDate = tomorrow;
+  if (state.settings.lastArchiveCheck === today) return;
+  let archivedCount = 0;
+  state.tasks.forEach(task => {
+    if (!task.archivedAt && task.planDate < today) {
+      task.archivedAt = new Date().toISOString();
+      archivedCount += 1;
+    }
+  });
+  state.settings.lastArchiveCheck = today;
+  if (archivedCount) save();
 }
 
 function showToast(message) {
@@ -278,6 +303,7 @@ function addTask(event) {
     planDate: state.selectedPlanDate,
     rank: plan.length + 1,
     completedAt: null,
+    archivedAt: null,
     createdAt: new Date().toISOString(),
     carriedFrom: null,
   });
@@ -341,10 +367,36 @@ function carryOverOpenTasks() {
     task.planDate = target;
     task.rank = plan.length + index + 1;
     task.carriedFrom = from;
+    task.archivedAt = null;
   });
   save();
   render();
   showToast(`${openPast.length}件をやる事リストに回しました`);
+}
+
+function restoreArchivedTask(id) {
+  const target = state.selectedPlanDate;
+  const plan = plannedTasks(target);
+  if (plan.length >= 6) {
+    showToast("やる事リストはすでに6つ埋まっています");
+    return;
+  }
+
+  const task = state.tasks.find(t => t.id === id);
+  if (!task || !task.archivedAt) return;
+  if (task.completedAt) {
+    showToast("完了済みタスクは戻せません");
+    return;
+  }
+
+  const from = task.planDate;
+  task.planDate = target;
+  task.rank = plan.length + 1;
+  task.archivedAt = null;
+  task.carriedFrom = from;
+  save();
+  render();
+  showToast("アーカイブから戻しました");
 }
 
 function toggleComplete(id) {
@@ -363,6 +415,7 @@ function render() {
   renderPlanSlots();
   renderToday();
   renderHistory();
+  renderArchive();
 }
 
 function renderGoals() {
@@ -436,11 +489,52 @@ function renderHistory() {
   const dates = [...new Set(state.tasks.map(task => task.planDate))].sort().reverse().slice(0, 10);
   els.historyList.innerHTML = dates.length
     ? dates.map(date => {
-      const plan = plannedTasks(date).slice(0, 6);
+      const plan = state.tasks.filter(task => task.planDate === date).sort((a, b) => a.rank - b.rank).slice(0, 6);
       const done = plan.filter(task => task.completedAt).length;
-      return `<article class="history-card"><div><strong>${dateLabel(date)}</strong><br>${plan.length}件</div><span>${done}/${plan.length || 6}完了</span></article>`;
+      const archived = plan.filter(task => task.archivedAt).length;
+      return `<article class="history-card"><div><strong>${dateLabel(date)}</strong><br>${plan.length}件${archived ? ` / アーカイブ${archived}件` : ""}</div><span>${done}/${plan.length || 6}完了</span></article>`;
     }).join("")
     : `<p class="empty-text">履歴はまだありません。</p>`;
+}
+
+function renderArchive() {
+  if (!els.archiveList) return;
+  const list = archivedTasks();
+  if (!list.length) {
+    els.archiveList.innerHTML = `<p class="empty-text">アーカイブはまだありません。</p>`;
+    return;
+  }
+
+  const groups = new Map();
+  list.forEach(task => {
+    if (!groups.has(task.planDate)) groups.set(task.planDate, []);
+    groups.get(task.planDate).push(task);
+  });
+
+  els.archiveList.innerHTML = [...groups.entries()].map(([date, tasks]) => {
+    const items = tasks.map(task => {
+      const status = task.completedAt ? "完了" : "未完了";
+      const restoreButton = task.completedAt
+        ? ""
+        : `<button class="tiny-button restore-archive" type="button" data-restore="${task.id}">戻す</button>`;
+      return `<article class="archive-task ${task.completedAt ? "done" : ""}">
+        <div>
+          <strong>${escapeHtml(task.title)}</strong>
+          <span>${status}${task.carriedFrom ? ` / ${dateLabel(task.carriedFrom)}から繰越` : ""}</span>
+        </div>
+        ${restoreButton}
+      </article>`;
+    }).join("");
+
+    return `<section class="archive-group">
+      <h3>${dateLabel(date)}</h3>
+      <div class="archive-items">${items}</div>
+    </section>`;
+  }).join("");
+
+  $$(".restore-archive").forEach(button => {
+    button.addEventListener("click", () => restoreArchivedTask(button.dataset.restore));
+  });
 }
 
 function copyPlanMarkdown() {
@@ -501,6 +595,10 @@ function resetAll() {
   showToast("リセットしました");
 }
 
+function escapeHtml(value) {
+  return String(value).replace(/[&<>'"]/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[ch]));
+}
+
 function bind() {
   $$(".tab").forEach(button => button.addEventListener("click", () => goPage(button.dataset.page)));
   els.themeToggleButton.addEventListener("click", toggleTheme);
@@ -544,6 +642,7 @@ function registerServiceWorker() {
 renderArtBackdrop();
 renderInkBackdrop();
 applyTheme(state.settings.theme);
+autoArchivePastTasks();
 bind();
 save();
 render();
